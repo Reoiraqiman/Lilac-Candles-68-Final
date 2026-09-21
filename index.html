@@ -2826,7 +2826,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(productModal.cla
 (() => {
   'use strict';
 
-  const WHATSAPP_NUMBER = ''; // ضع رقم WhatsApp هنا لاحقاً بدون + أو مسافات.
+  const WHATSAPP_NUMBER = '9647890003492';
   const CART_KEY = 'lilac_candles_cart_v1';
   const oilPrices = {
     1: {50:9000,100:15000,500:40000,1000:80000},
@@ -2834,8 +2834,21 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(productModal.cla
   };
 
   const $ = (id) => document.getElementById(id);
-  const money = (n) => `${Number(n || 0).toLocaleString('en-US')} د.ع`;
-  const esc = (v) => String(v ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+  const money = (n) => {
+    const value = Number(n);
+    return Number.isFinite(value) ? `${value.toLocaleString('en-US')} د.ع` : 'يحدد لاحقاً';
+  };
+  const moneyIQD = (n) => {
+    const value = Number(n);
+    return Number.isFinite(value) ? `${value.toLocaleString('en-US')} IQD` : '';
+  };
+  const safeText = (v) => {
+    if(v === undefined || v === null) return '';
+    if(typeof v === 'object') return '';
+    const value = String(v).trim();
+    return /^(undefined|null|NaN|\[object Object\])$/i.test(value) ? '' : value;
+  };
+  const esc = (v) => safeText(v).replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
   const parseFirstPrice = (text) => {
     const m = String(text || '').match(/(\d[\d,]*)\s*د\.ع/);
     return m ? Number(m[1].replace(/,/g,'')) : null;
@@ -2852,10 +2865,18 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(productModal.cla
   };
 
   let cart = [];
+  let checkoutItems = null;
   try { cart = JSON.parse(localStorage.getItem(CART_KEY) || '[]'); if (!Array.isArray(cart)) cart=[]; } catch(e){ cart=[]; }
 
-  const saveCart = () => { localStorage.setItem(CART_KEY, JSON.stringify(cart)); renderCart(); updateCartCount(); };
-  const cartCount = () => cart.reduce((sum,item)=>sum + Number(item.quantity||0),0);
+  const saveCart = () => {
+    try { localStorage.setItem(CART_KEY, JSON.stringify(cart)); } catch(e){}
+    renderCart();
+    updateCartCount();
+  };
+  const cartCount = () => cart.reduce((sum,item)=>{
+    const quantity = Number(item?.quantity);
+    return sum + (Number.isFinite(quantity) && quantity > 0 ? quantity : 0);
+  },0);
   const updateCartCount = () => { const el=$('cartCount'); if(el) el.textContent=cartCount(); };
 
   const imageFor = (item) => item.image || '';
@@ -2873,9 +2894,15 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(productModal.cla
 
   function addItem(item){
     const key=itemKey(item);
+    const requestedQty=Number(item?.quantity);
+    const quantity=Number.isFinite(requestedQty) && requestedQty > 0 ? Math.floor(requestedQty) : 1;
     const found=cart.find(x=>itemKey(x)===key);
-    if(found) found.quantity += Number(item.quantity||1);
-    else cart.push({...item,quantity:Number(item.quantity||1)});
+    if(found){
+      const existingQty=Number(found.quantity);
+      found.quantity=(Number.isFinite(existingQty) && existingQty > 0 ? Math.floor(existingQty) : 0)+quantity;
+    }else{
+      cart.push({...item,quantity});
+    }
     saveCart();
   }
   function removeItem(index){ cart.splice(index,1); saveCart(); }
@@ -2893,8 +2920,10 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(productModal.cla
   }
   function openCart(){ renderCart(); setModal(cartModal,true); }
   function closeCart(){ setModal(cartModal,false); }
-  function openCheckout(){
-    if(!cart.length){ showToast('السلة فارغة'); return; }
+  function openCheckout(items=cart){
+    const source=Array.isArray(items) ? items : [];
+    if(!source.length){ showToast('السلة فارغة'); return; }
+    checkoutItems=source.map(item=>({...item,quantity:Math.max(1,Number(item?.quantity)||1)}));
     closeCart(); setModal(checkoutModal,true);
     setTimeout(()=>$('customerName')?.focus(),80);
   }
@@ -2968,7 +2997,12 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(productModal.cla
   }
 
   function addCurrentProduct(){ const item=currentProductItem(); if(!item)return; addItem(item); closeProductIfPossible(); showToast('تمت إضافة المنتج إلى السلة 🤍'); }
-  function buyCurrentProduct(){ const item=currentProductItem(); if(!item)return; cart=[item]; saveCart(); closeProductIfPossible(); openCheckout(); }
+  function buyCurrentProduct(){
+    const item=currentProductItem();
+    if(!item)return;
+    closeProductIfPossible();
+    openCheckout([item]);
+  }
   function closeProductIfPossible(){ productModal?.classList.remove('is-open'); productModal?.setAttribute('aria-hidden','true'); window.activeProduct=null; updateBodyLock(); }
 
   function setupOilPanel(panel){
@@ -2992,7 +3026,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(productModal.cla
     document.querySelectorAll('[data-close-cart]').forEach(x=>x.addEventListener('click',closeCart));
     document.querySelectorAll('[data-close-checkout]').forEach(x=>x.addEventListener('click',closeCheckout));
     $('continueShopping')?.addEventListener('click',closeCart);
-    $('openCheckout')?.addEventListener('click',openCheckout);
+    $('openCheckout')?.addEventListener('click',()=>openCheckout());
     $('toastCart')?.addEventListener('click',()=>{ $('orderToast').classList.remove('is-visible'); openCart(); });
     $('cartList')?.addEventListener('click',e=>{
       const inc=e.target.closest('[data-cart-inc]'), dec=e.target.closest('[data-cart-dec]'), rem=e.target.closest('[data-cart-remove]');
@@ -3005,45 +3039,120 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(productModal.cla
     updateCartCount(); renderCart();
   };
 
-  function handleCheckout(e){
-    e.preventDefault();
-    if(!cart.length){alert('السلة فارغة');closeCheckout();return;}
-    const name=$('customerName').value.trim(), phone=$('customerPhone').value.trim(), notes=$('customerNotes').value.trim();
-    if(!name || !phone){alert('أكملي الاسم ورقم الهاتف أولاً 🤍');return;}
-    const msg=buildWhatsAppMessage(name,phone,notes);
-    if(WHATSAPP_NUMBER){
-      const clean=WHATSAPP_NUMBER.replace(/\D/g,'');
-      window.open(`https://wa.me/${clean}?text=${encodeURIComponent(msg)}`,'_blank','noopener');
-      return;
-    }
-    navigator.clipboard?.writeText(msg).catch(()=>{});
-    alert('تم تجهيز رسالة الطلب بالكامل. رقم WhatsApp غير مضاف حالياً، لذلك لم يتم فتح WhatsApp. الرسالة نُسخت للحافظة إذا كان المتصفح يسمح بذلك.');
+  function generateOrderNumber(){
+    const now=new Date();
+    const pad=(value,length=2)=>String(value).padStart(length,'0');
+    const date=`${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}`;
+    const random=String(Math.floor(1000+Math.random()*9000));
+    return `LILAC-${date}-${random}`;
   }
 
-  function buildWhatsAppMessage(name,phone,notes){
-    const lines=['مرحباً من ليلك للشموع 🤍','يسعدنا استلام طلبكم، وتفاصيله كالتالي:','','───────────────','تفاصيل الطلب 🕯️',''];
-    cart.forEach((item,i)=>{
-      lines.push(`المنتج ${i+1}:`);
-      lines.push(`اسم المنتج: ${item.name||'زيت عطري'}`);
-      lines.push(`رقم المنتج: ${item.code||'-'}`);
-      if(item.type==='oil'){
-        lines.push(`المجموعة: ${item.group||'-'}`);
-        lines.push(`الرائحة: ${item.scent||'-'}`);
-        lines.push(`الحجم: ${item.size||'-'}`);
-        lines.push(`السعر: ${money(item.unitPrice)}`);
-        lines.push(`الكمية: ${item.quantity}`);
-      }else{
-        lines.push(`السعر: ${item.priceText||money(item.unitPrice)}`);
-        lines.push(`اللون / الخيارات: ${optionSummary(item)||'-'}`);
-        lines.push(`عدد القطع: ${item.quantity}`);
+  function validItems(items){
+    return Array.isArray(items) ? items.filter(item=>item && typeof item==='object') : [];
+  }
+
+  function itemQuantity(item){
+    const value=Number(item?.quantity);
+    return Number.isFinite(value) && value>0 ? Math.floor(value) : 1;
+  }
+
+  function itemUnitPrice(item){
+    const value=Number(item?.unitPrice);
+    return Number.isFinite(value) && value>0 ? value : null;
+  }
+
+  function itemLabel(item){
+    return safeText(item?.name) || safeText(item?.code) || 'منتج';
+  }
+
+  function buildWhatsAppMessage(name,phone,notes,items,orderNumber){
+    const safeItems=validItems(items);
+    const safeName=safeText(name);
+    const safePhone=safeText(phone);
+    const safeNotes=safeText(notes);
+    const safeOrder=safeText(orderNumber) || generateOrderNumber();
+    const lines=[
+      'مرحباً من ليلك للشموع 🤍',
+      'يسعدنا استلام طلبكم، وتفاصيله كالتالي:',
+      '',
+      '───────────────',
+      'تفاصيل الطلب 🕯️',
+      `رقم الطلب: ${safeOrder}`,
+      ''
+    ];
+
+    if(safeItems.length===1){
+      const item=safeItems[0];
+      const unit=itemUnitPrice(item);
+      const quantity=itemQuantity(item);
+      lines.push(`اسم العميل: ${safeName}`);
+      lines.push(`اسم المنتج: ${itemLabel(item)}`);
+      if(safeText(item?.code)) lines.push(`رقم المنتج: ${safeText(item.code)}`);
+      if(item?.type==='oil'){
+        if(safeText(item?.group)) lines.push(`المجموعة: ${safeText(item.group)}`);
+        if(safeText(item?.scent)) lines.push(`الرائحة: ${safeText(item.scent)}`);
+        if(safeText(item?.size)) lines.push(`الحجم: ${safeText(item.size)}`);
       }
+      if(safeText(item?.color)) lines.push(`اللون المختار: ${safeText(item.color)}`);
+      if(safeText(item?.variant)) lines.push(`الخيار: ${safeText(item.variant)}`);
+      if(safeText(item?.customOption)) lines.push(`التخصيص: ${safeText(item.customOption)}`);
+      lines.push(`السعر: ${unit===null ? safeText(item?.priceText) || 'يحدد لاحقاً' : moneyIQD(unit)}`);
+      lines.push(`عدد القطع: ${quantity}`);
+      lines.push(`رقم الهاتف: ${safePhone}`);
+      lines.push(`ملاحظات إضافية: ${safeNotes}`);
+    }else{
+      lines.push(`اسم العميل: ${safeName}`);
+      lines.push(`رقم الهاتف: ${safePhone}`);
       lines.push('');
-    });
-    const numericTotal=cart.every(x=>Number.isFinite(Number(x.unitPrice))&&Number(x.unitPrice)>0) ? cart.reduce((s,x)=>s+Number(x.unitPrice)*x.quantity,0) : null;
-    lines.push('───────────────','معلومات العميل','',`اسم العميل: ${name}`,`رقم الهاتف: ${phone}`,`ملاحظات إضافية: ${notes||'-'}`,'');
-    if(numericTotal!==null) lines.push(`المجموع الكلي: ${money(numericTotal)}`,'');
-    lines.push('───────────────','','شكراً لاختياركم ليلِك للشموع','نصنع تفاصيلكم بعناية، لتبقى لحظاتكم أجمل. 🤍🕯️');
+      lines.push('المنتجات:');
+      safeItems.forEach((item,index)=>{
+        const unit=itemUnitPrice(item);
+        const quantity=itemQuantity(item);
+        lines.push('');
+        lines.push(`${index+1}. ${itemLabel(item)}`);
+        if(safeText(item?.code)) lines.push(`رقم المنتج: ${safeText(item.code)}`);
+        if(safeText(item?.color)) lines.push(`اللون: ${safeText(item.color)}`);
+        if(safeText(item?.variant)) lines.push(`الخيار: ${safeText(item.variant)}`);
+        if(safeText(item?.customOption)) lines.push(`التخصيص: ${safeText(item.customOption)}`);
+        if(item?.type==='oil'){
+          if(safeText(item?.group)) lines.push(`المجموعة: ${safeText(item.group)}`);
+          if(safeText(item?.scent)) lines.push(`الرائحة: ${safeText(item.scent)}`);
+          if(safeText(item?.size)) lines.push(`الحجم: ${safeText(item.size)}`);
+        }
+        lines.push(`الكمية: ${quantity}`);
+        lines.push(`السعر: ${unit===null ? safeText(item?.priceText) || 'يحدد لاحقاً' : moneyIQD(unit)}`);
+      });
+      const totals=safeItems.map(item=>{
+        const unit=itemUnitPrice(item);
+        return unit===null ? null : unit*itemQuantity(item);
+      });
+      const numericTotal=totals.every(value=>Number.isFinite(value)) ? totals.reduce((sum,value)=>sum+value,0) : null;
+      lines.push('');
+      lines.push('───────────────');
+      lines.push(`عدد المنتجات: ${safeItems.length}`);
+      lines.push(`المجموع الكلي: ${numericTotal===null ? 'يحدد لاحقاً' : moneyIQD(numericTotal)}`);
+      lines.push('');
+      lines.push(`ملاحظات إضافية: ${safeNotes}`);
+    }
+
+    lines.push('','───────────────','','شكراً لاختياركم ليلِك للشموع','نصنع تفاصيلكم بعناية، لتبقى لحظاتكم أجمل. 🤍🕯️');
     return lines.join('\n');
+  }
+
+  function handleCheckout(e){
+    e.preventDefault();
+    const items=validItems(checkoutItems?.length ? checkoutItems : cart);
+    if(!items.length){alert('السلة فارغة');closeCheckout();return;}
+    const name=safeText($('customerName')?.value);
+    const phone=safeText($('customerPhone')?.value);
+    const notes=safeText($('customerNotes')?.value);
+    if(!name){alert('أدخلي اسم العميل أولاً 🤍');$('customerName')?.focus();return;}
+    if(!phone){alert('أدخلي رقم الهاتف أولاً 🤍');$('customerPhone')?.focus();return;}
+    const orderNumber=generateOrderNumber();
+    const msg=buildWhatsAppMessage(name,phone,notes,items,orderNumber);
+    const clean=WHATSAPP_NUMBER.replace(/\D/g,'');
+    if(!clean)return;
+    window.open(`https://wa.me/${clean}?text=${encodeURIComponent(msg)}`,'_blank','noopener');
   }
 
   // Existing catalogue functions are declared in a later script, so expose the active product safely.
