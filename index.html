@@ -2919,7 +2919,14 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(productModal.cla
     document.body.classList.toggle('order-lock',locked);
   }
   function openCart(){ renderCart(); setModal(cartModal,true); }
-  function closeCart(){ setModal(cartModal,false); }
+  function closeCart(){
+    setModal(cartModal,false);
+    // The cart can sit above an already-open catalogue modal.
+    // Close both catalogue layers so no catalogue scroll-lock survives
+    // after the user exits the cart via X, backdrop, or Continue Shopping.
+    if(typeof closeProduct==='function') closeProduct();
+    if(typeof closeCategory==='function') closeCategory();
+  }
   function openCheckout(items=cart){
     const source=Array.isArray(items) ? items : [];
     if(!source.length){ showToast('السلة فارغة'); return; }
@@ -3003,7 +3010,17 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(productModal.cla
     closeProductIfPossible();
     openCheckout([item]);
   }
-  function closeProductIfPossible(){ productModal?.classList.remove('is-open'); productModal?.setAttribute('aria-hidden','true'); window.activeProduct=null; updateBodyLock(); }
+  function closeProductIfPossible(){
+    productModal?.classList.remove('is-open');
+    productModal?.setAttribute('aria-hidden','true');
+    window.activeProduct=null;
+
+    // Adding an item must not leave the parent category modal open behind it.
+    // Otherwise catalog-lock remains active and the main page cannot scroll.
+    if(typeof closeCategory==='function') closeCategory();
+
+    updateBodyLock();
+  }
 
   function setupOilPanel(panel){
     const group=Number(panel.dataset.oilGroup); const prices=oilPrices[group]; const scent=panel.querySelector('.oil-scent'), size=panel.querySelector('.oil-size'), qtyEl=panel.querySelector('.oil-qty'), unitEl=panel.querySelector('.oil-unit-price'), totalEl=panel.querySelector('.oil-total-price');
