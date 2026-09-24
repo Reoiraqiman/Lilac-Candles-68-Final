@@ -3115,6 +3115,10 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(productModal.cla
       if(safeText(item?.customOption)) lines.push(`التخصيص: ${safeText(item.customOption)}`);
       lines.push(`السعر: ${unit===null ? safeText(item?.priceText) || 'يحدد لاحقاً' : moneyIQD(unit)}`);
       lines.push(`عدد القطع: ${quantity}`);
+      if(quantity>1){
+        const itemTotal=unit===null ? null : unit*quantity;
+        lines.push(`المجموع: ${itemTotal===null ? 'يحدد لاحقاً' : moneyIQD(itemTotal)}`);
+      }
       lines.push(`رقم الهاتف: ${safePhone}`);
       lines.push(`ملاحظات إضافية: ${safeNotes}`);
     }else{
