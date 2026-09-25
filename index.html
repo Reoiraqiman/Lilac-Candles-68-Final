@@ -2392,6 +2392,41 @@ html[dir="rtl"] .lilac-home-overlay{background:linear-gradient(90deg,rgba(242,24
 .product-thumbs,
 .product-thumb{display:none!important}
 </style>
+<style id="lilac-scroll-safety">
+  /*
+   * Global page-scroll safety:
+   * - The normal website remains untouched.
+   * - Only open overlays lock the background page.
+   * - Legacy lock classes cannot freeze the page after their modal is gone.
+   */
+  html.lilac-scroll-locked,
+  body.lilac-scroll-locked {
+    overflow: hidden !important;
+  }
+
+  html.lilac-scroll-locked {
+    overscroll-behavior: none;
+  }
+
+  body.catalog-lock:not(.lilac-scroll-locked),
+  body.order-lock:not(.lilac-scroll-locked),
+  body.vc-lock:not(.lilac-scroll-locked),
+  html.catalog-lock-root:not(.lilac-scroll-locked) {
+    overflow: visible !important;
+  }
+
+  .vc-modal-shell,
+  .vc-detail-shell,
+  .catalog-modal,
+  .product-modal,
+  .catalog-shell,
+  .product-shell,
+  .cart-modal,
+  .checkout-modal {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+</style>
 <style id="lilac-cart-system-css">
 /* Lilac order/cart layer — additive only; existing catalogue styling remains untouched. */
 .cart-trigger{position:relative;display:inline-flex;align-items:center;gap:7px;border:1px solid var(--faded-gold);background:var(--soft-ivory);color:var(--muted-burgundy);padding:8px 11px;cursor:pointer;font:600 14px 'Amiri',serif;white-space:nowrap}
@@ -2708,37 +2743,97 @@ body.order-lock{overflow:hidden}
 
 <script id="lilac-catalog-scroll-fix">
 (() => {
-  const categoryModal = document.getElementById('categoryModal');
-  const productModal = document.getElementById('productModal');
+  'use strict';
+
+  /*
+   * Lilac unified scroll controller.
+   * It only controls page scrolling while an overlay/modal is open.
+   * It does not change layout, sizing, colors, typography, or component styling.
+   */
+  const modalIds = [
+    'vintageModal',
+    'vintageDetail',
+    'categoryModal',
+    'productModal',
+    'cartModal',
+    'checkoutModal'
+  ];
+
+  const modals = modalIds
+    .map(id => document.getElementById(id))
+    .filter(Boolean);
+
+  const legacyBodyLocks = ['vc-lock', 'catalog-lock', 'order-lock'];
+  const legacyRootLocks = ['catalog-lock-root'];
+
+  let pageWasLocked = false;
+  let savedScrollY = 0;
+
+  const isOpen = (el) =>
+    !!el && (
+      el.classList.contains('is-open') ||
+      el.getAttribute('aria-hidden') === 'false'
+    );
+
+  const anyModalOpen = () => modals.some(isOpen);
 
   const syncScrollLock = () => {
-    const locked = !!(
-      categoryModal?.classList.contains('is-open') ||
-      productModal?.classList.contains('is-open')
-    );
-    document.body.classList.toggle('catalog-lock', locked);
-    document.documentElement.classList.toggle('catalog-lock-root', locked);
-    if (!locked) {
-      document.body.style.removeProperty('overflow');
-      document.documentElement.style.removeProperty('overflow');
+    const locked = anyModalOpen();
+
+    if (locked && !pageWasLocked) {
+      savedScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+      document.documentElement.classList.add('lilac-scroll-locked');
+      document.body.classList.add('lilac-scroll-locked');
     }
+
+    if (!locked) {
+      document.documentElement.classList.remove('lilac-scroll-locked');
+      document.body.classList.remove('lilac-scroll-locked');
+
+      // Remove only the old scroll-lock classes used by previous catalogue/cart code.
+      legacyBodyLocks.forEach(cls => document.body.classList.remove(cls));
+      legacyRootLocks.forEach(cls => document.documentElement.classList.remove(cls));
+
+      if (pageWasLocked) {
+        window.scrollTo({ top: savedScrollY, left: 0, behavior: 'auto' });
+      }
+    }
+
+    pageWasLocked = locked;
   };
 
-  // Keep the page locked only while a catalogue modal is actually open.
-  const observer = new MutationObserver(syncScrollLock);
-  if (categoryModal) observer.observe(categoryModal, {attributes:true, attributeFilter:['class']});
-  if (productModal) observer.observe(productModal, {attributes:true, attributeFilter:['class']});
+  // Watch every overlay that can lock the page, including the vintage catalogue layer.
+  const observers = modals.map(modal => {
+    const observer = new MutationObserver(syncScrollLock);
+    observer.observe(modal, {
+      attributes: true,
+      attributeFilter: ['class', 'aria-hidden']
+    });
+    return observer;
+  });
+
+  // Initial state.
   syncScrollLock();
 
-  // Arrow/Page keys should scroll the currently visible catalogue instead of
-  // getting swallowed by the focused product button.
+  /*
+   * Keep keyboard scrolling inside the currently visible scrollable overlay.
+   * This does not affect normal page scrolling when no modal is open.
+   */
   document.addEventListener('keydown', (e) => {
-    if (!categoryModal?.classList.contains('is-open') &&
-        !productModal?.classList.contains('is-open')) return;
+    if (!anyModalOpen()) return;
 
-    const scrollBox = productModal?.classList.contains('is-open')
-      ? productModal
-      : categoryModal;
+    const tag = e.target?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') return;
+
+    const scrollBox =
+      productModalSafe() ||
+      categoryModalSafe() ||
+      document.querySelector('#vintageDetail.is-open .vc-detail-shell') ||
+      document.querySelector('#vintageModal.is-open .vc-modal-shell') ||
+      document.querySelector('#cartModal.is-open') ||
+      document.querySelector('#checkoutModal.is-open');
+
+    if (!scrollBox) return;
 
     const amount =
       e.key === 'ArrowDown' ? 90 :
@@ -2749,9 +2844,29 @@ body.order-lock{overflow:hidden}
       e.key === 'End' ? scrollBox.scrollHeight : 0;
 
     if (!amount) return;
+
     e.preventDefault();
-    scrollBox.scrollBy({top: amount, left: 0, behavior:'smooth'});
-  }, {passive:false});
+    scrollBox.scrollBy({ top: amount, left: 0, behavior: 'smooth' });
+  }, { passive: false });
+
+  function productModalSafe() {
+    const el = document.getElementById('productModal');
+    return el?.classList.contains('is-open') ? el : null;
+  }
+
+  function categoryModalSafe() {
+    const el = document.getElementById('categoryModal');
+    return el?.classList.contains('is-open') ? el : null;
+  }
+
+  // Re-sync when the tab/window becomes active again.
+  window.addEventListener('pageshow', syncScrollLock);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) syncScrollLock();
+  });
+
+  // Keep references alive for debugging without exposing anything to the UI.
+  window.__lilacScrollController = { sync: syncScrollLock };
 })();
 </script>
 <script id="lilac-final-catalog-data">
