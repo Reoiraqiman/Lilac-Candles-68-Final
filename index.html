@@ -2618,6 +2618,20 @@ body.order-lock{overflow:hidden}
         </button></div>
       <button class="category-open" type="button" data-open-category="rose">شاهدي جميع أعمال هذه الفئة <span>↗</span></button>
     </article>
+    <article class="category-block">
+      <div class="category-heading"><div><span>06</span><h3>الخريف</h3><p>تصاميم خريفية من الشموع وتنسيقات الموسم.</p></div><em>4 صور</em></div>
+      <div class="category-preview"><button class="cat-product" type="button" data-category="autumn" data-code="A-01" aria-label="عرض A-01">
+          <span class="cat-image"><img src="assets/autumn/autumn-1.jpg" alt="ليلـك للشموع — A-01" loading="lazy"></span>
+          <span class="cat-product-bottom"><b>A-01</b><small>28,000 د.ع</small></span>
+        </button><button class="cat-product" type="button" data-category="autumn" data-code="A-02" aria-label="عرض A-02">
+          <span class="cat-image"><img src="assets/autumn/autumn-2.jpg" alt="ليلـك للشموع — A-02" loading="lazy"></span>
+          <span class="cat-product-bottom"><b>A-02</b><small>43,000 د.ع</small></span>
+        </button><button class="cat-product" type="button" data-category="autumn" data-code="A-03" aria-label="عرض A-03">
+          <span class="cat-image"><img src="assets/autumn/autumn-3.jpg" alt="ليلـك للشموع — A-03" loading="lazy"></span>
+          <span class="cat-product-bottom"><b>A-03</b><small>50,000 د.ع</small></span>
+        </button></div>
+      <button class="category-open" type="button" data-open-category="autumn">شاهدي جميع أعمال هذه الفئة <span>↗</span></button>
+    </article>
   </div>
 </section>
 
@@ -2915,13 +2929,19 @@ const CATALOG_DATA = {"vintage":[{"code":"V-01","img":"V-01.jpeg","price":"42,00
 {"code":"R-08","img":"R-08.jpeg","price":"22,000 د.ع","meta":["فئة شموع الورد"],"desc":""},
 {"code":"R-09","img":"R-09.jpeg","price":"3,500 د.ع","meta":["فئة شموع الورد","سعر شموع الشمعدان: 3,500 د.ع","اللون: حسب الطلب"],"desc":""},
 {"code":"R-10","img":"R-10.jpeg","price":"3,500 د.ع","meta":["فئة شموع الورد","سعر شموع الشمعدان: 3,500 د.ع","سعر بوكيه الورد: 10,000 د.ع","اللون: حسب الطلب"],"desc":""}
+],"autumn":[
+{"code":"A-01","img":"autumn-1.jpg","price":"28,000 د.ع","meta":["3 قطع شموع + قاعدة شمعدان"],"desc":"3 قطع شموع + قاعدة شمعدان"},
+{"code":"A-02","img":"autumn-2.jpg","price":"43,000 د.ع","meta":["5 قطع شموع"],"desc":"5 قطع شموع"},
+{"code":"A-03","img":"autumn-3.jpg","price":"50,000 د.ع","meta":["9 قطع شموع + يقطينة حجر"],"desc":"9 قطع شموع + يقطينة حجر"},
+{"code":"A-04","img":"autumn-4.jpg","price":"38,000 د.ع","meta":["5 قطع شموع + قاعدة شمعدان"],"desc":"5 قطع شموع + قاعدة شمعدان"}
 ]};
 const CATEGORY_META={
  vintage:{title:'فئة شموع الفنتج',count:'15 صورة',subtitle:'15 تصميمًا بطابع فنتج وتفاصيل كلاسيكية.'},
  decor:{title:'فئة شموع الديكور',count:'11 صورة',subtitle:'11 تصميمًا للديكور وتنسيقات الشموع.'},
  occasions:{title:'فئة مناسبات وتوزيعات',count:'16 صورة',subtitle:'16 تصميمًا للمناسبات والتوزيعات حسب الطلب.'},
  gifts:{title:'فئة الهدايا',count:'16 صورة',subtitle:'16 تصميمًا للهدايا وشموع الأحرف.'},
- rose:{title:'فئة شموع الورد الضوئية',count:'10 صور',subtitle:'10 تصاميم من شموع الورد الضوئية والتنسيقات الزهرية.'}
+ rose:{title:'فئة شموع الورد الضوئية',count:'10 صور',subtitle:'10 تصاميم من شموع الورد الضوئية والتنسيقات الزهرية.'},
+ autumn:{title:'الخريف',count:'4 صور',subtitle:'4 تصاميم خريفية من الشموع وتنسيقات الموسم.'}
 };
 const categoryModal=document.getElementById('categoryModal'),productModal=document.getElementById('productModal'),categoryGrid=document.getElementById('categoryGrid');
 let activeCategory=null,activeProduct=null;
